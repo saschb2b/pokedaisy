@@ -1,7 +1,7 @@
 #!/bin/bash
 # PokeDaisy as a PortMaster port (ROCKNIX, Knulli, muOS, AmberELEC and the other firmwares that
 # run PortMaster): PortMaster's usual launcher. Put this file and the pokedaisy/ folder in your
-# ports folder, and your games in pokedaisy/roms/. Not yet tried on a device.
+# ports folder, and your games in pokedaisy/roms/. Tried on ROCKNIX (a Retroid Pocket Nova).
 
 XDG_DATA_HOME=${XDG_DATA_HOME:-$HOME/.local/share}
 if [ -d "/opt/system/Tools/PortMaster/" ]; then
@@ -33,7 +33,30 @@ export SDL_GAMECONTROLLERCONFIG="$sdl_controllerconfig"
 if [ -n "$GPTOKEYB" ]; then
   $GPTOKEYB "pokedaisy-linux" &
 fi
-./pokedaisy-linux --data "$GAMEDIR"
+# DS games: with the libretro DS core (linux/libretro-ds) in cores/ and RetroArch on the firmware, the game list hands
+# a .nds over (--nds-handoff) and RetroArch runs it in that core, its saves and states in this port's own folders
+# (saves/<game>.srm) whatever RetroArch's own settings say, and nothing of this written back to them.
+DSCORE="$GAMEDIR/cores/pokedaisy_ds_libretro.so"
+HANDOFF="$GAMEDIR/.nds-handoff"
+if [ -f "$DSCORE" ] && command -v retroarch > /dev/null; then
+  printf '%s = "%s"\n' savefile_directory "$GAMEDIR/saves" savestate_directory "$GAMEDIR/states" \
+    savefiles_in_content_dir false savestates_in_content_dir false \
+    sort_savefiles_enable false sort_savefiles_by_content_enable false \
+    sort_savestates_enable false sort_savestates_by_content_enable false \
+    config_save_on_exit false global_core_options true core_options_path "$GAMEDIR/retroarch-ds-options.cfg" \
+    > "$GAMEDIR/retroarch-ds.cfg"
+  # The party HUD starts on, as in the app (the companion's own SETTINGS, once changed, have the say).
+  [ -f "$GAMEDIR/retroarch-ds-options.cfg" ] || echo 'pokedaisy_ds_hud = "enabled"' > "$GAMEDIR/retroarch-ds-options.cfg"
+  while :; do
+    rm -f "$HANDOFF"
+    ./pokedaisy-linux --data "$GAMEDIR" --nds-handoff "$HANDOFF"
+    [ -s "$HANDOFF" ] || break
+    retroarch -L "$DSCORE" --appendconfig "$GAMEDIR/retroarch-ds.cfg" "$(cat "$HANDOFF")"
+  done
+  rm -f "$HANDOFF"
+else
+  ./pokedaisy-linux --data "$GAMEDIR"
+fi
 
 if declare -f pm_finish > /dev/null; then
   pm_finish

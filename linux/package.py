@@ -7,11 +7,16 @@ p=argparse.ArgumentParser(description=__doc__)
 p.add_argument('binary',type=Path);p.add_argument('output',type=Path)
 p.add_argument('--portmaster',action='store_true',help='a PortMaster port: PokeDaisy.sh + pokedaisy/')
 p.add_argument('--dsperate',action='store_true',help='label the opt-in DS experiment and include its notices')
+p.add_argument('--ds-core',type=Path,help='with --portmaster: the libretro DS core (linux/libretro-ds), which the launcher runs .nds games in through RetroArch')
 a=p.parse_args();repo=Path(__file__).resolve().parents[1]
 header=a.binary.read_bytes()[:20]
 if header[:6] != b'\x7fELF\x02\x01':p.error('Expected a 64-bit little-endian Linux ELF')
 arch=int.from_bytes(header[18:20],'little')
 if arch not in (62,183):p.error('Supported package targets: x86_64 or AArch64')
+if a.ds_core:
+    if not a.portmaster:p.error('--ds-core goes with --portmaster')
+    core_header=a.ds_core.read_bytes()[:20]
+    if core_header[:6]!=header[:6] or core_header[18:20]!=header[18:20]:p.error('Expected the DS core built for the same target as the binary')
 name=('pokedaisy-portmaster-' if a.portmaster else 'pokedaisy-linux-')+('aarch64' if arch==183 else 'x86_64')
 if a.dsperate:
     if b'DSperate %s' not in a.binary.read_bytes():p.error('Expected a POCKET_DSPERATE build')
@@ -36,15 +41,21 @@ licenses=dest/'licenses';licenses.mkdir()
 for path,license_name in [('LICENSE','mGBA-MPL-2.0.txt'),('src/third-party/blip_buf/license.txt','blip_buf-LGPL-2.1.txt'),('src/third-party/inih/LICENSE.txt','inih-BSD.txt')]:
     shutil.copy2(repo/'third_party/mgba'/path,licenses/license_name)
 (licenses/'PixelOperator.txt').write_text('Pixel Operator by Jayvee Enaguas. CC0. See NOTICE.\n')
-if a.dsperate:
-    ds=repo/'third_party/dsperate'
+# DSperate's notices go with the host's own DS backend (--dsperate) and with the libretro DS core (--ds-core).
+ds=repo/'third_party/dsperate' if a.dsperate else repo/'third_party/dsperate-lr/DSperate' if a.ds_core else None
+if ds:
     for source,target in [('LICENSE','DSperate-GPL-3.0.txt'),
             ('src/core/bios/LICENSE.freebios','FreeBIOS-BSD.txt'),
             ('src/core/cart/miniz/LICENSE','miniz-MIT.txt'),
             ('src/core/io/dsi_font/LICENSE-WenQuanYi-MicroHei.txt','WenQuanYi-MicroHei.txt'),
             ('src/core/io/dsi_font/LICENSE-NotoSans-OFL-1.1.txt','NotoSans-OFL-1.1.txt')]:
         shutil.copy2(ds/source,licenses/target)
+if a.dsperate:
     shutil.copy2(repo/'linux/dsperate/README.md',dest/'DS-EXPERIMENT.md')
+if a.ds_core:
+    (dest/'cores').mkdir()
+    shutil.copy2(a.ds_core,dest/'cores'/'pokedaisy_ds_libretro.so')
+    shutil.copy2(repo/'third_party/dsperate-lr/LICENSE',licenses/'dsperate-lr-GPL-3.0.txt')
 sha=subprocess.check_output(['git','rev-parse','HEAD'],cwd=repo,text=True).strip()
 core=subprocess.check_output(['git','rev-parse','HEAD:third_party/mgba'],cwd=repo,text=True).strip()
 (dest/'SOURCE.txt').write_text(f'Source: https://github.com/lidor30/pokedaisy\nFork: https://github.com/keeganwhitacre/pokedaisy-brick\nCommit: {sha}\nmGBA: {core}\nBuild: linux/README.md at this commit\n')
@@ -52,6 +63,10 @@ if a.dsperate:
     ds_commit=subprocess.check_output(['git','rev-parse','HEAD'],cwd=repo/'third_party/dsperate',text=True).strip()
     with (dest/'SOURCE.txt').open('a') as f:
         f.write(f'EXPERIMENTAL DS backend: https://github.com/beebono/DSperate\nDSperate: {ds_commit}\nBuild: linux/dsperate/README.md\n')
+if a.ds_core:
+    lr=subprocess.check_output(['git','rev-parse','HEAD'],cwd=repo/'third_party/dsperate-lr',text=True).strip()
+    with (dest/'SOURCE.txt').open('a') as f:
+        f.write(f'DS core (cores/pokedaisy_ds_libretro.so): https://github.com/beebono/DSperate through https://github.com/thwonp/dsperate-lr\ndsperate-lr: {lr}\nBuild: linux/libretro-ds/README.md\n')
 archive=a.output/(name+'.zip')
 with zipfile.ZipFile(archive,'w',zipfile.ZIP_DEFLATED) as z:
     for f in sorted(top.rglob('*')):

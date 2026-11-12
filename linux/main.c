@@ -72,6 +72,9 @@ static const char *root = ".";
 /* plorpOS: --save FILE, the battery save another emulator keeps (its backups
  * then go to DATA/backups); NULL = DATA/saves/ROM.sav. */
 static const char *saveFile;
+/* --nds-handoff FILE: the game list lists .nds games and, when one is chosen, writes its path there and leaves: a
+ * launcher (linux/portmaster/PokeDaisy.sh) then runs it in the libretro DS core. */
+static const char *ndsHandoff;
 static char message[128];
 static unsigned messageUntil;
 enum {
@@ -2030,6 +2033,8 @@ int main(int argc, char **argv) {
       root = argv[++i];
     else if (!strcmp(argv[i], "--save") && i + 1 < argc)
       saveFile = argv[++i];
+    else if (!strcmp(argv[i], "--nds-handoff") && i + 1 < argc)
+      ndsHandoff = argv[++i];
     else if (!strcmp(argv[i], "--frames") && i + 1 < argc)
       frames = atoi(argv[++i]);
     else if (!strcmp(argv[i], "--shot") && i + 1 < argc)
@@ -2116,14 +2121,15 @@ int main(int argc, char **argv) {
     snprintf(path, sizeof path, "%s/roms", root);
     DIR *d = opendir(path);
     struct dirent *e;
+#ifdef POCKET_DSPERATE
+    const bool nds = true;
+#else
+    const bool nds = ndsHandoff != NULL;
+#endif
     while (d && (e = readdir(d)) && count < 256) {
       char *ext = strrchr(e->d_name, '.');
       if (ext && (!strcasecmp(ext, ".gba") || !strcasecmp(ext, ".gbc") ||
-                  !strcasecmp(ext, ".gb")
-#ifdef POCKET_DSPERATE
-                  || !strcasecmp(ext, ".nds")
-#endif
-                  ))
+                  !strcasecmp(ext, ".gb") || (nds && !strcasecmp(ext, ".nds"))))
         names[count++] = strdup(e->d_name);
     }
     if (d)
@@ -2143,6 +2149,13 @@ int main(int argc, char **argv) {
         pd_menu_move(&menu, 1);
       if (down(A) && count) {
         snprintf(path, sizeof path, "%s/roms/%s", root, names[menu.selected]);
+        const char *ext = strrchr(path, '.');
+        FILE *handoff = ndsHandoff && ext && !strcasecmp(ext, ".nds") ? fopen(ndsHandoff, "w") : NULL;
+        if (handoff) {
+          fputs(path, handoff);
+          fclose(handoff);
+          break;
+        }
         run_game(path, 0, NULL);
       }
       companion_canvas();

@@ -189,7 +189,10 @@ the screen (`companion_size`: the largest whole scale keeping 320x240, so 426x24
 Android's `PartySlot` ported (`pd_ui_party.c`), and the host's D-pad focus reaches the core as `pd_ui.focusId` so a
 slot shows its own selected look instead of the focus ring. Controllers hotplug (`controller_added` / `_removed`, mappings
 from `DATA/gamecontrollerdb.txt` or `SDL_GAMECONTROLLERCONFIG`); `package.py --portmaster` + `linux/portmaster/PokeDaisy.sh`
-make a PortMaster port (ROCKNIX & co., untried on a device; `test_portmaster.py` runs it against a stand-in PortMaster). Y opens
+make a PortMaster port (ROCKNIX & co., tried on a Retroid Pocket Nova, 2026-11-12; `test_portmaster.py` runs it against a stand-in
+PortMaster; a plain cross toolchain needs `-DBUILD_LTO=OFF`). With `--ds-core` (the libretro DS core, `linux/libretro-ds`) and RetroArch
+on the firmware its DS games go to that core: the game list lists `.nds` and hands a picked one over (`--nds-handoff FILE`), the launcher
+runs `retroarch -L` on it with the port's own `saves/` / `states/` (`retroarch-ds.cfg`, appended, never saved back). Y opens
 the QUICK MENU (`linux/quick_menu.c`: QuickMenu.kt's RING / GLASS look, drawn into an ARGB canvas over the running game):
 WILD ENCOUNTERS (the game's own switch, found by `linux/wild.c` - a C port of `WildEncounters.find`'s agbcc / CFRU
 shapes - and held by pk_wide.c's `pk_field_state`; `settings.wildOff`), SAVE / LOAD STATE, FF, COMPANION, and PC /
@@ -214,7 +217,11 @@ DSperate core (`third_party/dsperate`, unmodified), its own event loop (`fronten
 companion (`companion.cpp`, Gen4Reader.kt's rules), the shared quick menu and party HUD. It builds the app's
 `pk_nds_field.cpp` as is - keep that file RAM-only (melonDS reads go in `pk_nds_field_gpu.cpp`). `data_gen.h` is scraped
 from the Kotlin (Gen4Reader / Gen4TablesPlatinum / Gen4TownMapPlatinum / NdsArt / Gen4Dex ...) by `gen_data.py`: after
-changing those, run it (`--check` fails in `.github/workflows/linux-ds-experiment.yml`). DSperate states carry the save;
+changing those, run it (`--check` fails in `.github/workflows/linux-ds-experiment.yml`). The libretro DS core
+(`linux/libretro-ds`, the same `companion.cpp`) also reads the US HeartGold / SoulSilver / Black / White / Black 2 / White 2 and, since
+2026-11-12, their German carts: `ports` in `data_gen.h` (digest, US base game, code, the two moved globals, from `NdsPortsGen.kt` and
+`GEN4_HEARTGOLD_DE`), picked by `ds_open_cart` (call it once per ROM; it returns the US game's digest, so every digest check
+downstream holds). A cart goes on that list only once it has been run with this reader. DSperate states carry the save;
 loading one keeps the battery save in memory (`load_state_keeping_save`), like the GBA host.
 
 ## Testing: quick by default, full runs only with the user's OK

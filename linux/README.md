@@ -129,7 +129,24 @@ exit hotkey) beside a `pokedaisy/` folder with the binary, licenses and empty
 `roms/`, `saves/` and `states/` once it has run. Copy both into the firmware's
 `ports` folder and your games into `pokedaisy/roms/`. It fills the screen and
 uses the firmware's own SDL2. CTest's `portmaster-launcher` runs the launcher
-against a stand-in PortMaster (native builds). Not yet tried on a device.
+against a stand-in PortMaster (native builds). Tried on a Retroid Pocket Nova
+running ROCKNIX (1280x960): the game list, a GBA game and the DS path below.
+
+A cross build with a plain distribution toolchain needs `-DBUILD_LTO=OFF`
+(mGBA's LTO objects don't link without the compiler's plugin), as CI passes.
+
+**DS games through RetroArch.** `--ds-core <pokedaisy_ds_libretro.so>` adds the
+libretro DS core (`linux/libretro-ds`, built for the same target) as
+`pokedaisy/cores/`. On a firmware with RetroArch the launcher then starts the
+game list with `--nds-handoff FILE`: it lists `.nds` games too and, when one is
+picked, writes its path to FILE and leaves, and the launcher runs it with
+`retroarch -L` in that core, coming back to the list afterwards. RetroArch gets
+the port's own `saves/` and `states/` (`saves/<game>.srm`, in
+`retroarch-ds.cfg`, never written back to RetroArch's settings), so a DS save
+beside the ROM is not touched: copy it in as `saves/<game>.srm` to carry on.
+[The core's README](libretro-unified/README.md) has its controls and games.
+Without the core or RetroArch a `.nds` runs in this host only when it was built
+with the DS backend below.
 
 ## TrimUI cross-build and launcher
 

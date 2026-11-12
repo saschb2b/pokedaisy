@@ -55,6 +55,13 @@ On firmwares that run PortMaster (ROCKNIX, Knulli, muOS and others), the
 PortMaster build goes in your `ports` folder like any other port, with your
 games in its `roms` folder. Controllers can be plugged in while you play.
 
+If the port comes with its DS core and your firmware has RetroArch, DS games
+show in the same list. Picking one opens it in RetroArch with the DS companion
+described under "NXRedux collection and Platinum" below, and leaving it brings
+you back to the list. Its saves and states stay in the port's own `saves` and
+`states` folders, so a save you already have beside the ROM is left alone. To
+carry on from it, copy it into `saves` under the game's name ending in `.srm`.
+
 This early version does not include the Polished Crystal companion, the longer
 summaries or firmware power handling. Earlier
 builds ran on the Brick and Smart Pro, but this separated foundation still
@@ -120,6 +127,11 @@ chose, so `ZOOM OUT` stays zoomed out while you rewind.
 The optional Brick package uses one PokeDaisy collection for Game Boy, Game
 Boy Color, Game Boy Advance and Nintendo DS. See
 `linux/libretro-unified/README.md` for build, install and save migration steps.
+
+The DS companion reads Platinum (USA, revision 1), the US HeartGold,
+SoulSilver, Black, White, Black 2 and White 2, and the German HeartGold,
+SoulSilver, Black, White, Black 2 and White 2. In a German game its own names
+stay English.
 
 In Platinum (USA, revision 1), L2 opens the companion and SELECT + L2 opens
 the quick menu. Set `SETTINGS` > `DS LAYOUT` to `ONE SCREEN` to play on the
