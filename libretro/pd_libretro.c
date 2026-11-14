@@ -2136,8 +2136,12 @@ RETRO_API void retro_run(void) {
       hudState.pc = pcOk || gbf || polishedActions;
       hudState.wild = hud_wild_uncaught(&game, &snap);
       draw_hud();
-    } else
+    } else {
+      // Hidden (a menu, a battle): drawn again from scratch when it comes back. Its cached picture's key alone stayed
+      // the same after the START menu, so hudShown stayed false until something in it changed (a step).
       hudShown = false;
+      hudDrawnKey = 0;
+    }
   }
   PF_T(td1);
   pf_add(PF_DRAW, td1 - td0);
