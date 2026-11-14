@@ -1402,6 +1402,44 @@ static const char *core_for(const char *path) {
     return "pokedaisy_ds_libretro.so";
   return NULL;
 }
+/* The game list shows the main Pokemon games only (the firmware's folders hold every other game too), told by the cart's
+ * header: a GBA game code of FireRed / LeafGreen / Emerald / Ruby / Sapphire (the hacks keep theirs) or a hack's own,
+ * a Game Boy title of Red / Blue / Green / Yellow / Gold / Silver / Crystal and their hacks (not Pinball, the card
+ * games or Puzzle Challenge), a DS game code of Diamond / Pearl / Platinum / HeartGold / SoulSilver / Black / White /
+ * their sequels. */
+static bool pokemon_rom(const char *path) {
+  unsigned char h[0x150];
+  FILE *f = fopen(path, "rb");
+  size_t n = f ? fread(h, 1, sizeof h, f) : 0;
+  if (f)
+    fclose(f);
+  const char *ext = strrchr(path, '.');
+  if (!ext)
+    return false;
+  if (!strcasecmp(ext, ".gba")) {
+    static const char *const codes[] = {"BPR", "BPG", "BPE", "AXV", "AXP", "MON", "PUV"};
+    for (size_t i = 0; n >= 0xB0 && i < sizeof codes / sizeof *codes; i++)
+      if (!memcmp(h + 0xAC, codes[i], 3))
+        return true;
+    return false;
+  }
+  if (!strcasecmp(ext, ".nds")) {
+    static const char *const codes[] = {"ADA", "APA", "CPU", "IPK", "IPG", "IRB", "IRA", "IRE", "IRD"};
+    for (size_t i = 0; n >= 0x10 && i < sizeof codes / sizeof *codes; i++)
+      if (!memcmp(h + 0x0C, codes[i], 3))
+        return true;
+    return false;
+  }
+  if (n < 0x144)
+    return false;
+  char title[17] = {0};
+  memcpy(title, h + 0x134, 16);
+  static const char *const spinOffs[] = {"POKECARD", "POKEPINBALL", "POKEMON PC", "POKEMON-CG", "POKEMON PINB"};
+  for (size_t i = 0; i < sizeof spinOffs / sizeof *spinOffs; i++)
+    if (!strncmp(title, spinOffs[i], strlen(spinOffs[i])))
+      return false;
+  return !strncmp(title, "POKE", 4) || !strncmp(title, "PM_", 3) || !strncmp(title, "PK", 2);
+}
 #ifdef POCKET_DSPERATE
 extern int pd_ds_run(const char *, const char *, int, const char *, SDL_Renderer *, bool (*)(void));
 static bool ds_running(void) { return running != 0; }
@@ -1935,7 +1973,8 @@ int main(int argc, char **argv) {
     run_game(rom, frames, shot, false);
   else {
     /* DATA/roms, then the folders POCKET_ROM_DIRS names (colon-separated: the PortMaster launcher passes the
-     * firmware's own gba / gb / gbc / nds folders), by file name. */
+     * firmware's own gba / gb / gbc / nds folders), by file name. Those hold every other game too, so only their
+     * Pokemon games are listed (pokemon_rom); DATA/roms lists whatever was put there. */
     static char *paths[1024];
     static const char *names[1024];
     int count = 0;
@@ -1943,13 +1982,15 @@ int main(int argc, char **argv) {
     snprintf(dirs, sizeof dirs, "%s/roms%s%s", root, getenv("POCKET_ROM_DIRS") ? ":" : "",
              getenv("POCKET_ROM_DIRS") ? getenv("POCKET_ROM_DIRS") : "");
     char *save = NULL;
-    for (char *dir = strtok_r(dirs, ":", &save); dir; dir = strtok_r(NULL, ":", &save)) {
+    bool firmware = false;
+    for (char *dir = strtok_r(dirs, ":", &save); dir; dir = strtok_r(NULL, ":", &save), firmware = true) {
       DIR *d = opendir(dir);
       struct dirent *e;
       while (d && (e = readdir(d)) && count < 1024) {
         if (core_for(e->d_name)) {
           snprintf(path, sizeof path, "%s/%s", dir, e->d_name);
-          paths[count++] = strdup(path);
+          if (!firmware || pokemon_rom(path))
+            paths[count++] = strdup(path);
         }
       }
       if (d)
