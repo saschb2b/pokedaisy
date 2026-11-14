@@ -994,9 +994,26 @@ static void canvas_update(bool notify) {
     h = (int)fh;
   } else if (panelW)
     canvas_for((int)fw, (int)fh, want_canvas(), &w, &h);
+  // A doubled canvas shows at half the game's scale: on a panel where that scale is odd (5x on 1280x960) the frontend's
+  // whole scale of the doubled canvas fell to 2x, leaving bars round the picture. EXPAND's canvas can grow instead: one
+  // game scale less, even, fills the panel; ORIGINAL's can't, so it stays undoubled at the game's own scale.
+  bool doubleable = true;
+  if (PD_BE_IS_GBA() && !companion && panelW && (w < 320 || h < 240)) {
+    int s1 = panelW / w < panelH / h ? panelW / w : panelH / h;
+    int s2 = panelW / (2 * w) < panelH / (2 * h) ? panelW / (2 * w) : panelH / (2 * h);
+    if (2 * s2 < s1) {
+      if (settings.aspect == PD_ASPECT_ORIGINAL || s1 < 2)
+        doubleable = false;
+      else {
+        int s = s1 - 1;
+        w = panelW / s > CANVAS_MAX_W ? CANVAS_MAX_W : panelW / s;
+        h = panelH / s > CANVAS_MAX_H ? CANVAS_MAX_H : panelH / s;
+      }
+    }
+  }
   // Keep extra pixels available for the menu throughout gameplay. Double the game
   // pixels exactly, then draw menu text and icons directly at output resolution.
-  if (PD_BE_IS_GBA() && !companion && (w < 320 || h < 240) && w <= CWMAX / 2 && h <= CHMAX / 2) {
+  if (doubleable && PD_BE_IS_GBA() && !companion && (w < 320 || h < 240) && w <= CWMAX / 2 && h <= CHMAX / 2) {
     scale = 2;
     w *= scale;
     h *= scale;

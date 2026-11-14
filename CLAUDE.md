@@ -212,6 +212,17 @@ diagnostic ROMs over both cores. `package.py --core` ships the cores beside the 
 CI (`.github/workflows/linux.yml`): x86_64 on Ubuntu 22.04 (glibc <= 2.35: SteamOS), AArch64 host + mGBA core on the TrimUI
 toolchain (GCC 8.3), the armGBA core on Ubuntu 22.04's cross GCC (8.3 can't build it), every aarch64 core failing CI if it needs a
 glibc past 2.33 (the Brick; `libretro/armgba/glibc_compat.*` pins armGBA's to 2.17). The DS experiment hook (`pd_ds_run`) is kept.
+**The game list is the app's library** (`linux/library.c`, 2026-11-14, the user's call: "the full PokeDaisy experience"): LibraryActivity's rail
+(GAMES / TOOLS / SETTINGS), POKéDAISY header (sort, grid / list), QuickViewPills' colours and counts, RomTile / RomRow cards, CategoryArt for a
+game with no cover, the launcher's ButtonLegend; in the 3DS core's pieces (`pd_style`, `pd_canvas`), on a canvas of about 640x480 (the overlay's
+320x240 is the companion's). Covers are drawn as SDL textures at the screen's resolution between the page and a second canvas (legend, menus):
+the firmware's scraped box art (EmulationStation's `gamelist.xml` thumbnail, `images/<name>-thumb.png`; its favorites / last played too),
+else SteamGridDB with the player's key in `DATA/steamgriddb-key.txt` (never bundled; `SteamGridDbGames.BY_SHA1`'s hacks, else a name search
+that must name the game and be a Pokemon one; icons, else the 600x900 box fitted), cached in `DATA/covers/` (`.none` = nothing found), all
+off the UI thread through `curl`; PNGs by `cover_png.c` over zlib's `contrib/puff`. Names by SHA-1 (`pd_game_entry_for`, cached in
+`DATA/library-titles.txt`). DARK MODE / THEME / ASPECT are the cores' `saves/pokedaisy/settings.ini`. The firmware's folders list only
+Pokemon games (`pokemon_rom` in main.c: header code / title, spin-offs out). The library's first start writes that file with EXPAND (the cores' own
+default stays ORIGINAL: `test_core.c` pins it), and a doubled GBA canvas whose half scale is odd (5x on 1280x960) takes an even game scale instead (canvas_update).
 **DS on Linux** (opt-in, `-DPOCKET_DSPERATE=ON`; Keegan's, 2026-10-28; `linux/dsperate/README.md`): `.nds` games on the
 DSperate core (`third_party/dsperate`, unmodified), its own event loop (`frontend.cpp`), a read-only Platinum USA rev 1
 companion (`companion.cpp`, Gen4Reader.kt's rules), the shared quick menu and party HUD. It builds the app's
