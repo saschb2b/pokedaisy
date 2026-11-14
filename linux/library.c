@@ -67,6 +67,7 @@ static const struct lib_host *host;
 static struct pd_settings settings;
 static int page = P_GAMES, focus = F_GAMES, view = V_ALL, sortBy = S_NAME, railCursor, headerCursor;
 static bool grid = true, quit, menuOpen, closeAsk;
+static int faceColors; // BUTTON COLORS: 0 the app's (red A, yellow B, blue X, green Y), 1 green A, red B, blue X, yellow Y
 static int selected, scroll, columns = 4, menuCursor, settingsCursor, settingsScroll, toolCursor;
 static const char *picked;
 static char notice[96];
@@ -165,7 +166,7 @@ static void state_save(void) {
   FILE *f = fopen(stateFile, "w");
   if (!f)
     return;
-  fprintf(f, "view=%d\nsort=%d\ngrid=%d\n", view, sortBy, grid);
+  fprintf(f, "view=%d\nsort=%d\ngrid=%d\nfaces=%d\n", view, sortBy, grid, faceColors);
   for (int i = 0; i < gameCount; i++) {
     if (games[i].favSet)
       fprintf(f, "fav\t%d\t%s\n", games[i].fav, games[i].file);
@@ -189,6 +190,8 @@ static void state_load(void) {
       sortBy = v;
     else if (sscanf(line, "grid=%d", &v) == 1)
       grid = v != 0;
+    else if (sscanf(line, "faces=%d", &v) == 1)
+      faceColors = v == 1;
     else if (sscanf(line, "fav\t%d\t%255[^\n]", &v, file) == 2 && by_file(file)) {
       by_file(file)->fav = v != 0;
       by_file(file)->favSet = true;
@@ -920,15 +923,16 @@ static void step_view(int dir) {
   state_save();
 }
 
-/* SETTINGS' rows: the library's three, then the host's, then VERSION. */
+/* SETTINGS' rows: the library's three, then the host's, BUTTON COLORS (after the host's A/B BUTTONS), then VERSION. */
 enum { SET_DARK, SET_THEME, SET_ASPECT, SET_OWN };
-static int settings_rows(void) { return SET_OWN + (host ? host->settings : 0) + 1; }
+static int host_rows(void) { return host ? host->settings : 0; }
+static int settings_rows(void) { return SET_OWN + host_rows() + 2; }
 static const char *setting_group(int row) {
   if (row < SET_OWN)
     return "SCREEN";
-  if (host && row - SET_OWN < host->settings)
+  if (row - SET_OWN < host_rows())
     return host->group(row - SET_OWN);
-  return "APP";
+  return row == SET_OWN + host_rows() ? "CONTROLS" : "APP";
 }
 static void setting_label(int row, char *label, int llen, char *value, int vlen) {
   value[0] = 0;
@@ -943,9 +947,12 @@ static void setting_label(int row, char *label, int llen, char *value, int vlen)
   } else if (row == SET_ASPECT) {
     snprintf(label, (size_t)llen, "ASPECT");
     snprintf(value, (size_t)vlen, "%s", pd_aspect_name(settings.aspect));
-  } else if (host && row - SET_OWN < host->settings) {
+  } else if (row - SET_OWN < host_rows()) {
     snprintf(label, (size_t)llen, "%s", host->label(row - SET_OWN));
     host->value(row - SET_OWN, value, vlen);
+  } else if (row == SET_OWN + host_rows()) {
+    snprintf(label, (size_t)llen, "BUTTON COLORS");
+    snprintf(value, (size_t)vlen, "%s", faceColors ? "GREEN A" : "RED A");
   } else {
     snprintf(label, (size_t)llen, "VERSION");
     snprintf(value, (size_t)vlen, "%s", host && host->version ? host->version : "");
@@ -971,8 +978,12 @@ static void setting_step(int row, int dir) {
   } else if (row == SET_ASPECT) {
     settings.aspect = (settings.aspect + dir + PD_ASPECTS) % PD_ASPECTS;
     look_save();
-  } else if (host && row - SET_OWN < host->settings)
+  } else if (row - SET_OWN < host_rows())
     host->step(row - SET_OWN, dir);
+  else if (row == SET_OWN + host_rows()) {
+    faceColors = !faceColors;
+    state_save();
+  }
 }
 
 static void play(void) {
@@ -1609,7 +1620,10 @@ int library_covers(struct lib_cover *out, int max) {
 }
 
 static void face(struct pd_canvas *c, int x, int y, char letter) {
-  uint32_t col = letter == 'A' ? 0xD83A3A : letter == 'B' ? 0xE8B020 : letter == 'X' ? 0x3A6AD8 : 0x30A050;
+  // The legend's buttons in your device's colours (BUTTON COLORS): the app's, or green A, red B, blue X, yellow Y.
+  static const uint32_t COLORS[2][4] = {{0xD83A3A, 0xE8B020, 0x3A6AD8, 0x30A050}, {0x30A050, 0xD83A3A, 0x3A6AD8, 0xE8B020}};
+  int k = letter == 'A' ? 0 : letter == 'B' ? 1 : letter == 'X' ? 2 : 3;
+  uint32_t col = COLORS[faceColors][k];
   pd_round_rect(c, x, y, 18, 18, 8, pd_mix(col, 0x000000, 70));
   pd_round_rect(c, x + 1, y + 1, 16, 16, 7, col);
   char s[2] = {letter, 0};

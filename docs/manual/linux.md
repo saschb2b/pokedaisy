@@ -192,7 +192,9 @@ and `HACKS`.
 
 The header's first button sorts the games by name or by when you last played them; favorites always come first.
 `SETTINGS` holds `DARK MODE`, `THEME` and `ASPECT` (shared with the companion in your games) and the program's own
-`LCD FILTER`, `FF SPEED`, `REWIND` and `A/B BUTTONS`. `TOOLS` lists the save tools that are coming to this version.
+`LCD FILTER`, `FF SPEED`, `REWIND` and `A/B BUTTONS`. `BUTTON COLORS` paints the button legend like your device's
+buttons: `RED A` (the app's colours) or `GREEN A` (green A, red B, blue X, yellow Y). On ROCKNIX the buttons follow
+their labels, so the button marked A is A, as long as the firmware's controller layout is Nintendo (its default). `TOOLS` lists the save tools that are coming to this version.
 
 **Covers.** A game shows the box art your firmware's scraper saved for it (EmulationStation's `images` folder beside the
 games), and your favorites and last played games from that list come along too. A game without one gets its console's
